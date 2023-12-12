@@ -21,7 +21,7 @@ def apply_lora(parent_block: nn.Module, device):
             setattr(parent_block, name, block)
 
         elif isinstance(block, nn.Module):
-            apply_lora(block, device)
+            apply_lora(block, device=device)
 
 
 class LoRALinearLayer(nn.Module):
