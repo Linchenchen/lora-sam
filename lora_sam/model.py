@@ -2,7 +2,7 @@ from segment_anything.modeling.sam import Sam
 import pytorch_lightning as pl
 from lora import *
 from segment_anything import sam_model_registry
-import random
+from pytorch_lightning.callbacks.finetuning import BaseFinetuning
 
 
 class LoRASAM(pl.LightningModule):
@@ -21,6 +21,7 @@ class LoRASAM(pl.LightningModule):
         sam.prompt_encoder.image_embedding_size = [16, 16]
 
         self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
+        BaseFinetuning.freeze(sam.image_encoder, train_bn=True)
         self.sam = sam
     
 
@@ -61,6 +62,7 @@ class LoRASAM(pl.LightningModule):
         shape BxCxHxW, where H=W=256. Can be passed as mask input
         to subsequent iterations of prediction.
         """
+        kwargs["multimask_output"] = True
         return self.sam(args, kwargs)
 
     def configure_optimizers(self):
@@ -93,6 +95,7 @@ class LoRASAM(pl.LightningModule):
 
         points = []
         labels = []
+
         def append_point(arg):
             i, j = arg
             points.append(arg)
@@ -109,6 +112,10 @@ class LoRASAM(pl.LightningModule):
         # 1b. iterative point prompt training up to 3 iteration
         # 2. box prompt training, only 1 iteration
         predictions = self.forward(batched_input)
+        for pred in predictions:
+            for key, value in pred.items():
+                print(key, value.shape)
+
         print("yattaaaaaaa!!!!!!!!")
         loss = ...
         self.log('train_loss', loss, prog_bar=True)
