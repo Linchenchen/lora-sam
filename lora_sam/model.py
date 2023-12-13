@@ -84,34 +84,78 @@ class LoRASAM(pl.LightningModule):
     def iou_token_loss(iou_prediction, prediction, targets):
         ...
 
-    def training_step(self, batch, batch_idx):
-        images, targets = (tensor.to(self.device) for tensor in batch)
-        mask_id = torch.randint(0, targets.shape[1], (1,))
 
-        batched_input = {}
-        batched_input['image'] = images[0]
-        batched_input['original_size'] = targets.shape[2:]
+    def point_sample(self, all_masks, points_coords, points_label):
+        # all_masks: [N, H, W], one image, N masks
+        # points_coords: (N, 2)
+        # points_label: (N, 1), 1 for foreground, 0 for background
+        # return: sampled_masks: [3, H, W], masks order from big to small
+        # you can modify the signature of this function
+
+        mask_ids = []
+        for i, mask in enumerate(all_masks):
+            is_valid = True
+            for is_fore, (x, y) in zip(points_label, points_coords):
+                on_mask = int(mask[int(y)][int(x)])
+                is_valid = (on_mask and is_fore) or (not on_mask and not is_fore)
+                if not is_valid:
+                    break
+
+            if is_valid:
+                mask_ids.append(i)
+
+        mask_ids.sort(key=lambda i: all_masks[i].sum())
+        assert mask_ids
+
+        while len(mask_ids) < 3:
+            mask_ids.insert(0, mask_ids[0])
+
+        return all_masks[mask_ids[:3]]
+    
+
+    def training_step(self, batch, batch_idx):
+        images, target = batch
+        images = images.to(self.device)
+        target = target.to(self.device)
+        mask_id = torch.randint(0, target.shape[1], (1,))
+
+        sam_input = {}
+        sam_input['image'] = images[0]
+        sam_input['original_size'] = target.shape[2:]
         use_point_prompt = True or torch.rand(1).item() < 0.5
 
-        points = []
+        coords = []
         labels = []
 
         def append_point(arg):
             i, j = arg
-            points.append(arg)
-            labels.append(targets[0,mask_id,i,j])
+            coords.append(arg)
+            labels.append(target[0,mask_id,i,j])
 
         if use_point_prompt:
-            append_point([torch.randint(0, dim, (1,)) for dim in targets.shape[2:]])
-            batched_input["point_coords"] = torch.Tensor([points]).to(self.device)
-            batched_input["point_labels"] = torch.Tensor([labels]).to(self.device)
+            append_point([torch.randint(0, dim, (1,)) for dim in target.shape[2:]])
+            sam_input["point_coords"] = torch.Tensor([coords]).to(self.device)
+            sam_input["point_labels"] = torch.Tensor([labels]).to(self.device)
         else:
             pass
+
+
+        if use_point_prompt:
+            print("aaaaaaaaaaaaaaaaaaa")
+            target_masks = self.point_sample(target[0], coords, labels)
+            
+            print(target_masks)
+        else:
+            pass
+
+
+        
 
         # 1a. single point prompt training
         # 1b. iterative point prompt training up to 3 iteration
         # 2. box prompt training, only 1 iteration
-        predictions = self.forward(batched_input)
+        pred = self.forward(batched_input)[0]
+        self.point_sample()
         for pred in predictions:
             for key, value in pred.items():
                 print(key, value.shape)

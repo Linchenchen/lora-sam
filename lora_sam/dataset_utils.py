@@ -24,7 +24,7 @@ def get_loaders(folder="./sa1b"):
 
     torch.random.manual_seed(1)
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=1)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=1)
 
     return train_loader, test_loader
