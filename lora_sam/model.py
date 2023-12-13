@@ -17,10 +17,10 @@ class LoRASAM(pl.LightningModule):
         avg_pooling = nn.AvgPool2d(kernel_size=4, stride=4)
         downsampled_tensor = avg_pooling(sam.image_encoder.pos_embed.permute(0,3,1,2)).permute(0,2,3,1)
         sam.image_encoder.pos_embed.data = downsampled_tensor
-        sam.prompt_encoder.input_image_size = [256,256]
-        sam.prompt_encoder.image_embedding_size = [16,16]
+        sam.prompt_encoder.input_image_size = [256, 256]
+        sam.prompt_encoder.image_embedding_size = [16, 16]
 
-        #self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
+        self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
         self.sam = sam
     
 
