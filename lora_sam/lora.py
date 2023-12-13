@@ -3,24 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def apply_lora(parent_block: nn.Module, device):
-    for name, block in parent_block.named_children():
-        if isinstance(block, nn.Linear):
-            block = MonkeyPatchLoRALinear(block, 4, 1).to(device)
-            setattr(parent_block, name, block)
-
-        elif isinstance(block, nn.Conv2d):
-            block = MonkeyPatchLoRAConv2D(block, 4, 1).to(device)
-            setattr(parent_block, name, block)
-
-        elif isinstance(block, nn.ConvTranspose2d):
-            block = MonkeyPatchLoRAConvTranspose2D(block, 4, 1).to(device)
-            setattr(parent_block, name, block)
-
-        elif isinstance(block, nn.Module):
-            apply_lora(block, device=device)
-
-
 class LoRALinearLayer(nn.Module):
     def __init__(self, in_features, out_features, rank=4):
         super().__init__()

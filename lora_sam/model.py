@@ -14,24 +14,6 @@ class LoRASAM(pl.LightningModule):
         self.sam = sam
 
 
-    def __apply_lora(self, module: nn.Module, r, s):
-        for name, blk in module.named_children():
-            if isinstance(blk, nn.Linear):
-                blk = MonkeyPatchLoRALinear(blk, r, s).to(self.device)
-                setattr(module, name, blk)
-
-            elif isinstance(blk, nn.Conv2d):
-                blk = MonkeyPatchLoRAConv2D(blk, r, s).to(self.device)
-                setattr(module, name, blk)
-
-            elif isinstance(blk, nn.ConvTranspose2d):
-                blk = MonkeyPatchLoRAConvTranspose2D(blk, r, s).to(self.device)
-                setattr(module, name, blk)
-
-            elif isinstance(blk, nn.Module):
-                self.__apply_lora(blk, r, s)
-
-
     def construct_batched_input(self, images, targets):
         batched_input = {}
         batched_input['image'] = images
@@ -134,3 +116,21 @@ class LoRASAM(pl.LightningModule):
         loss = 0
         # use same procedure as training, monitor the loss
         self.log('val_loss', loss, prog_bar=True)
+
+
+    def __apply_lora(self, module: nn.Module, r, s):
+        for name, blk in module.named_children():
+            if isinstance(blk, nn.Linear):
+                blk = MonkeyPatchLoRALinear(blk, r, s).to(self.device)
+                setattr(module, name, blk)
+
+            elif isinstance(blk, nn.Conv2d):
+                blk = MonkeyPatchLoRAConv2D(blk, r, s).to(self.device)
+                setattr(module, name, blk)
+
+            elif isinstance(blk, nn.ConvTranspose2d):
+                blk = MonkeyPatchLoRAConvTranspose2D(blk, r, s).to(self.device)
+                setattr(module, name, blk)
+
+            elif isinstance(blk, nn.Module):
+                self.__apply_lora(blk, r, s)
