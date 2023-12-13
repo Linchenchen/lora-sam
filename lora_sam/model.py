@@ -83,10 +83,7 @@ class LoRASAM(pl.LightningModule):
         ...
 
     def training_step(self, batch, batch_idx):
-        images, targets = batch
-        images = images.to(self.device)
-        targets = targets.to(self.device)
-        print(images.shape, targets.shape)
+        images, targets = (tensor.to(self.device) for tensor in batch)
         mask_id = torch.randint(0, targets.shape[1], (1,))
 
         batched_input = {}
@@ -108,15 +105,11 @@ class LoRASAM(pl.LightningModule):
         else:
             pass
 
-
-
-        print(images.shape, targets.shape)
-        
         # 1a. single point prompt training
         # 1b. iterative point prompt training up to 3 iteration
         # 2. box prompt training, only 1 iteration
         predictions = self.forward(batched_input)
-        print("yaataaaaaa!!!!!!!!!!!!!!!!!!")
+        print("yattaaaaaaa!!!!!!!!")
         loss = ...
         self.log('train_loss', loss, prog_bar=True)
         # During training, we backprop only the minimum loss over the 3 output masks.
@@ -137,11 +130,11 @@ class LoRASAM(pl.LightningModule):
                 blk = MonkeyPatchLoRALinear(blk, r, s).to(self.device)
                 setattr(module, name, blk)
 
-            elif 0 and isinstance(blk, nn.Conv2d):
+            elif isinstance(blk, nn.Conv2d):
                 blk = MonkeyPatchLoRAConv2D(blk, r, s).to(self.device)
                 setattr(module, name, blk)
 
-            elif 0 and isinstance(blk, nn.ConvTranspose2d):
+            elif isinstance(blk, nn.ConvTranspose2d):
                 blk = MonkeyPatchLoRAConvTranspose2D(blk, r, s).to(self.device)
                 setattr(module, name, blk)
 
