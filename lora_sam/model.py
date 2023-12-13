@@ -22,20 +22,6 @@ class LoRASAM(pl.LightningModule):
 
         #self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
         self.sam = sam
-
-
-    def construct_batched_input(self, images, targets):
-        batched_input = {}
-        batched_input['image'] = images
-        batched_input['mask_inputs'] = targets
-
-        # Assuming you have a function to get original sizes from images
-        batched_input['original_size'] = (256, 160)
-
-        # Other keys may need to be filled based on your model requirements
-        # You should adapt this based on the actual keys and values your model expects
-
-        return batched_input
     
 
     def forward(self, *args, **kwargs):
@@ -98,11 +84,13 @@ class LoRASAM(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         images, targets = batch
+        images = images.to(self.device)
+        targets = targets.to(self.device)
         print(images.shape, targets.shape)
         mask_id = torch.randint(0, targets.shape[1], (1,))
 
         batched_input = {}
-        batched_input['image'] = images
+        batched_input['image'] = images[0]
         batched_input['original_size'] = targets.shape[2:]
         use_point_prompt = True or torch.rand(1).item() < 0.5
 
@@ -115,8 +103,8 @@ class LoRASAM(pl.LightningModule):
 
         if use_point_prompt:
             append_point([torch.randint(0, dim, (1,)) for dim in targets.shape[2:]])
-            batched_input["point_coords"] = torch.Tensor([points])
-            batched_input["point_labels"] = torch.Tensor([labels])
+            batched_input["point_coords"] = torch.Tensor([points]).to(self.device)
+            batched_input["point_labels"] = torch.Tensor([labels]).to(self.device)
         else:
             pass
 
