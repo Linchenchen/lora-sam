@@ -71,24 +71,3 @@ class SA1B_Dataset(torchvision.datasets.ImageFolder):
 
     def __len__(self):
         return len(self.imgs)
-
-
-input_reverse_transforms = transforms.Compose([
-    transforms.ToPILImage(),
-])
-
-import matplotlib.pyplot as plt
-def show_image(image, target, row=12, col=12):
-    # image: numpy image
-    # target: mask [N, H, W]
-    fig, axs = plt.subplots(row, col, figsize=(20, 12))
-    for i in range(row):
-        for j in range(col):
-            if i*row+j < target.shape[0]:
-                axs[i, j].imshow(image)
-                axs[i, j].imshow(target[i*row+j], alpha=0.5)
-            else:
-                axs[i, j].imshow(image)
-            axs[i, j].axis('off')
-    plt.tight_layout()
-    plt.show()

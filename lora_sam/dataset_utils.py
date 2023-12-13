@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, random_split
 
 
 
-def get_loaders(folder="./sa1b", batch_size=32):
+def get_loaders(folder="./sa1b"):
     input_transform = transforms.Compose([
         transforms.Resize((160, 256)),
         transforms.ToTensor(),
@@ -24,7 +24,7 @@ def get_loaders(folder="./sa1b", batch_size=32):
 
     torch.random.manual_seed(1)
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=2)
 
     return train_loader, test_loader

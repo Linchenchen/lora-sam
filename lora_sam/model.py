@@ -2,6 +2,7 @@ from segment_anything.modeling.sam import Sam
 import pytorch_lightning as pl
 from lora import *
 from segment_anything import sam_model_registry
+import random
 
 
 class LoRASAM(pl.LightningModule):
@@ -10,7 +11,7 @@ class LoRASAM(pl.LightningModule):
 
         sam = sam_model_registry["vit_b"](checkpoint=checkpoint)
         sam = sam.to(self.device)
-        self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
+        #self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
         self.sam = sam
 
 
@@ -75,10 +76,6 @@ class LoRASAM(pl.LightningModule):
     
 
     @staticmethod
-    def get_sam_original():
-        pass
-
-    @staticmethod
     def mask_dice_loss(prediction, targets):
         ...
 
@@ -91,19 +88,38 @@ class LoRASAM(pl.LightningModule):
         ...
 
     def training_step(self, batch, batch_idx):
-        #assert 0
         images, targets = batch
         print(images.shape, targets.shape)
-        batched_input = self.construct_batched_input(images, targets)
+        mask_id = torch.randint(0, targets.shape[1], (1,))
 
-        use_point_prompt = torch.rand(1).item() < 0.5
+        batched_input = {}
+        batched_input['image'] = images
+        batched_input['original_size'] = targets.shape[2:]
+        use_point_prompt = True or torch.rand(1).item() < 0.5
+
+        points = []
+        labels = []
+        def append_point(arg):
+            i, j = arg
+            points.append(arg)
+            labels.append(targets[0,mask_id,i,j])
+
         if use_point_prompt:
+            append_point([torch.randint(0, dim, (1,)) for dim in targets.shape[2:]])
+            batched_input["point_coords"] = torch.Tensor([points])
+            batched_input["point_labels"] = torch.Tensor([labels])
+        else:
             pass
-            
+
+
+
+        print(images.shape, targets.shape)
+        
         # 1a. single point prompt training
         # 1b. iterative point prompt training up to 3 iteration
         # 2. box prompt training, only 1 iteration
         predictions = self.forward(batched_input)
+        print("yaataaaaaa!!!!!!!!!!!!!!!!!!")
         loss = ...
         self.log('train_loss', loss, prog_bar=True)
         # During training, we backprop only the minimum loss over the 3 output masks.
@@ -124,11 +140,11 @@ class LoRASAM(pl.LightningModule):
                 blk = MonkeyPatchLoRALinear(blk, r, s).to(self.device)
                 setattr(module, name, blk)
 
-            elif isinstance(blk, nn.Conv2d):
+            elif 0 and isinstance(blk, nn.Conv2d):
                 blk = MonkeyPatchLoRAConv2D(blk, r, s).to(self.device)
                 setattr(module, name, blk)
 
-            elif isinstance(blk, nn.ConvTranspose2d):
+            elif 0 and isinstance(blk, nn.ConvTranspose2d):
                 blk = MonkeyPatchLoRAConvTranspose2D(blk, r, s).to(self.device)
                 setattr(module, name, blk)
 
