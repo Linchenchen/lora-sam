@@ -83,7 +83,7 @@ class LoRASAM(pl.LightningModule):
         shape BxCxHxW, where H=W=256. Can be passed as mask input
         to subsequent iterations of prediction.
         """
-        return self.lora_sam(args, kwargs)
+        return self.sam(args, kwargs)
 
     def configure_optimizers(self):
         lora_parameters = [param for param in self.parameters() if param.requires_grad]
@@ -109,6 +109,7 @@ class LoRASAM(pl.LightningModule):
         ...
 
     def training_step(self, batch, batch_idx):
+        #assert 0
         images, targets = batch
         print(images.shape, targets.shape)
         batched_input = self.construct_batched_input(images, targets)
@@ -130,6 +131,6 @@ class LoRASAM(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         images, targets = batch
         ...
-        loss = ...
+        loss = 0
         # use same procedure as training, monitor the loss
         self.log('val_loss', loss, prog_bar=True)
