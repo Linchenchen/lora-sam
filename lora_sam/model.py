@@ -3,6 +3,7 @@ import pytorch_lightning as pl
 from lora import *
 from segment_anything import sam_model_registry
 from pytorch_lightning.callbacks.finetuning import BaseFinetuning
+import random
 
 
 class LoRASAM(pl.LightningModule):
@@ -72,16 +73,42 @@ class LoRASAM(pl.LightningModule):
         return optimizer
     
 
-    @staticmethod
-    def mask_dice_loss(prediction, targets):
-        ...
+    def calc_loss(self, pred, gt_masks):
+        pred_ious  = pred["iou_predictions"][0]
+        pred_masks = pred["masks"][0]
+        min_loss = torch.inf
+        for iou, pred, targ in zip(pred_ious, pred_masks, gt_masks):
+            loss = 0
+            loss += self.mask_dice_loss(pred, targ)
+            loss += self.mask_focal_loss(pred, targ)
+            min_loss = torch.min(min_loss, loss)
 
-    @staticmethod
-    def mask_focal_loss(prediction, targets):
-        ...
+        return min_loss
+    
 
-    @staticmethod
-    def iou_token_loss(iou_prediction, prediction, targets):
+    def mask_dice_loss(self, mask_pred, mask_gt):
+        mask_pred = mask_pred.to(self.device)
+        mask_gt = mask_gt.to(self.device)
+        dice_loss = 2 * torch.sum(mask_pred * mask_gt, dim=(-1,-2)) 
+        dice_loss /= 1e-5 + torch.sum(mask_pred ** 2, dim=(-1,-2)) + torch.sum(mask_gt ** 2, dim=(-1,-2))
+        return torch.sum(1 - dice_loss)
+    
+
+    def mask_focal_loss(self, mask_pred, mask_gt):
+        alpha = 0.8
+        gamma = 2
+        ids = torch.where(mask_gt == 1)
+        focal_loss1 = -alpha * ((1 - mask_pred[ids]) ** gamma) * torch.log(mask_pred[ids])
+        
+        ids = torch.where(mask_gt != 1)
+        focal_loss2 = -(1-alpha) * (mask_pred[ids] ** gamma) * torch.log(1-mask_pred[ids])
+
+        focal_loss = torch.sum(focal_loss1) + torch.sum(focal_loss2)
+        focal_loss /= len(mask_pred)
+        return focal_loss
+
+
+    def iou_token_loss(self, iou_prediction, prediction, targets):
         ...
 
 
@@ -96,7 +123,7 @@ class LoRASAM(pl.LightningModule):
         for i, mask in enumerate(all_masks):
             is_valid = True
             for is_fore, (x, y) in zip(points_label, points_coords):
-                on_mask = int(mask[int(y)][int(x)])
+                on_mask = int(mask[int(x)][int(y)])
                 is_valid = (on_mask and is_fore) or (not on_mask and not is_fore)
                 if not is_valid:
                     break
@@ -110,15 +137,14 @@ class LoRASAM(pl.LightningModule):
         while len(mask_ids) < 3:
             mask_ids.insert(0, mask_ids[0])
 
-        return all_masks[mask_ids[:3]]
+        return mask_ids[:3]
     
 
     def training_step(self, batch, batch_idx):
         images, target = batch
         images = images.to(self.device)
         target = target.to(self.device)
-        mask_id = torch.randint(0, target.shape[1], (1,))
-
+        
         sam_input = {}
         sam_input['image'] = images[0]
         sam_input['original_size'] = target.shape[2:]
@@ -126,14 +152,14 @@ class LoRASAM(pl.LightningModule):
 
         coords = []
         labels = []
-
-        def append_point(arg):
+        def append_point(idx, arg):
             i, j = arg
             coords.append(arg)
-            labels.append(target[0,mask_id,i,j])
+            labels.append(target[0,idx,i,j])
 
+        idx = torch.randint(target.shape[1], (1,))
         if use_point_prompt:
-            append_point([torch.randint(0, dim, (1,)) for dim in target.shape[2:]])
+            append_point(idx, [torch.randint(dim, (1,)) for dim in target.shape[2:]])
             sam_input["point_coords"] = torch.Tensor([coords]).to(self.device)
             sam_input["point_labels"] = torch.Tensor([labels]).to(self.device)
         else:
@@ -141,24 +167,33 @@ class LoRASAM(pl.LightningModule):
 
 
         if use_point_prompt:
-            print("aaaaaaaaaaaaaaaaaaa")
-            target_masks = self.point_sample(target[0], coords, labels)
-            
-            print(target_masks)
+            mask_ids = self.point_sample(target[0], coords, labels)
         else:
             pass
-
-
-        
 
         # 1a. single point prompt training
         # 1b. iterative point prompt training up to 3 iteration
         # 2. box prompt training, only 1 iteration
-        pred = self.forward(batched_input)[0]
-        self.point_sample()
-        for pred in predictions:
-            for key, value in pred.items():
-                print(key, value.shape)
+        for _ in range(3):
+            pred = self.forward(sam_input)[0]
+            print(target[0].shape)
+            mask_ids = self.point_sample(target[0], coords, labels)
+
+            for i, mask_idx in enumerate(mask_ids):
+                pred_mask = pred["masks"][0][i]
+                targ_mask = target[0][mask_idx]
+
+                samp_mask = torch.logical_xor(pred_mask, targ_mask)
+                print(samp_mask.shape)
+                samp_idx = random.choice(torch.nonzero(samp_mask))
+                print(samp_idx)
+
+                append_point(mask_idx, samp_idx)
+
+            logit_id = torch.argmax(pred["iou_predictions"][0], dim=0)
+            #sam_input["mask_inputs"] = pred["low_res_logits"][:,logit_id,:,:]
+            sam_input["point_coords"] = torch.Tensor([coords]).to(self.device)
+            sam_input["point_labels"] = torch.Tensor([labels]).to(self.device)
 
         print("yattaaaaaaa!!!!!!!!")
         loss = ...
