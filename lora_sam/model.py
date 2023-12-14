@@ -5,6 +5,8 @@ from segment_anything import sam_model_registry
 from pytorch_lightning.callbacks.finetuning import BaseFinetuning
 import random
 
+from .loss_func import MaskDiceLoss, MaskFocalLoss
+
 
 class LoRASAM(pl.LightningModule):
     def __init__(self, lora_rank: int, lora_scale: float, checkpoint="sam_vit_b_01ec64.pth"):
@@ -21,9 +23,11 @@ class LoRASAM(pl.LightningModule):
         sam.prompt_encoder.input_image_size = [256, 256]
         sam.prompt_encoder.image_embedding_size = [16, 16]
 
-        self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
-        BaseFinetuning.freeze(sam.image_encoder, train_bn=True)
+        #self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
+        #BaseFinetuning.freeze(sam.image_encoder, train_bn=True)
         self.sam = sam
+        self.dice = MaskDiceLoss()
+        self.focal = MaskFocalLoss()
     
 
     def forward(self, *args, **kwargs):
@@ -76,14 +80,15 @@ class LoRASAM(pl.LightningModule):
     def calc_loss(self, pred, gt_masks):
         pred_ious  = pred["iou_predictions"][0]
         pred_masks = pred["masks"][0]
-        losses = []
+        loss = 0
+        return self.dice(pred_masks[0], gt_masks[0])
         for iou, pred, targ in zip(pred_ious, pred_masks, gt_masks):
-            loss = 0
-            loss += self.mask_dice_loss(pred, targ)
-            loss += self.mask_focal_loss(pred, targ)
-            losses.append(loss)
+            #loss += 
+            return self.dice(pred, targ)
+            return self.mask_focal_loss(pred, targ)
+            #losses.append(loss)
 
-        return min(losses)
+        return loss
     
 
     def mask_dice_loss(self, mask_pred, mask_gt):
@@ -97,12 +102,11 @@ class LoRASAM(pl.LightningModule):
     def mask_focal_loss(self, mask_pred: torch.Tensor, mask_gt):
         alpha = 0.8
         gamma = 2
-        mask_pred = mask_pred.type(torch.float32)
         ids = torch.where(mask_gt == 1)
-        focal_loss1 = -alpha * ((1 - mask_pred[ids]) ** gamma) * torch.log(mask_pred[ids])
+        focal_loss1 = -alpha * ((~mask_pred[ids]) ** gamma) * torch.log(mask_pred[ids])
         
         ids = torch.where(mask_gt != 1)
-        focal_loss2 = -(1-alpha) * (mask_pred[ids] ** gamma) * torch.log(1-mask_pred[ids])
+        focal_loss2 = -(1-alpha) * (mask_pred[ids] ** gamma) * torch.log(~mask_pred[ids])
 
         focal_loss = torch.sum(focal_loss1) + torch.sum(focal_loss2)
         focal_loss /= len(mask_pred)
@@ -166,6 +170,14 @@ class LoRASAM(pl.LightningModule):
         else:
             pass
 
+        pred = self.forward(sam_input)[0]
+        mask_ids = self.point_sample(target[0], coords, labels)
+        print("lll2")
+        loss = self.calc_loss(pred, target[0][mask_ids])
+        print("lll2.5")
+        loss.backward()
+        print("lll3")
+
 
         if use_point_prompt:
             mask_ids = self.point_sample(target[0], coords, labels)
@@ -192,16 +204,22 @@ class LoRASAM(pl.LightningModule):
                 append_point(mask_idx, samp_idx)
 
             logit_id = torch.argmax(pred["iou_predictions"][0], dim=0)
-            sam_input["mask_inputs"] = pred["low_res_logits"][:,logit_id,:,:]
+            #sam_input["mask_inputs"] = pred["low_res_logits"][:,logit_id,:,:]
             sam_input["point_coords"] = torch.Tensor([coords]).to(self.device)
             sam_input["point_labels"] = torch.Tensor([labels]).to(self.device)
 
-        print("yattaaaaaaa!!!!!!!!")
+        print("yattaaaaaaadzbzdb!!!!!!!!")
         pred = self.forward(sam_input)[0]
+        print("1")
         mask_ids = self.point_sample(target[0], coords, labels)
+        print("2")
         loss = self.calc_loss(pred, target[0][mask_ids])
+        print(loss)
+        print("3")
 
         self.log('train_loss', loss, prog_bar=True)
+        print("4")
+        loss.backward()
 
         print("yattaaaaaaa!!!!!!!!2222222")
         # During training, we backprop only the minimum loss over the 3 output masks.
