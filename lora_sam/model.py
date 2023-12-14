@@ -76,14 +76,14 @@ class LoRASAM(pl.LightningModule):
     def calc_loss(self, pred, gt_masks):
         pred_ious  = pred["iou_predictions"][0]
         pred_masks = pred["masks"][0]
-        min_loss = torch.inf
+        losses = []
         for iou, pred, targ in zip(pred_ious, pred_masks, gt_masks):
             loss = 0
             loss += self.mask_dice_loss(pred, targ)
             loss += self.mask_focal_loss(pred, targ)
-            min_loss = torch.min(min_loss, loss)
+            losses.append(loss)
 
-        return min_loss
+        return min(losses)
     
 
     def mask_dice_loss(self, mask_pred, mask_gt):
@@ -94,9 +94,10 @@ class LoRASAM(pl.LightningModule):
         return torch.sum(1 - dice_loss)
     
 
-    def mask_focal_loss(self, mask_pred, mask_gt):
+    def mask_focal_loss(self, mask_pred: torch.Tensor, mask_gt):
         alpha = 0.8
         gamma = 2
+        mask_pred = mask_pred.type(torch.float32)
         ids = torch.where(mask_gt == 1)
         focal_loss1 = -alpha * ((1 - mask_pred[ids]) ** gamma) * torch.log(mask_pred[ids])
         
@@ -191,13 +192,18 @@ class LoRASAM(pl.LightningModule):
                 append_point(mask_idx, samp_idx)
 
             logit_id = torch.argmax(pred["iou_predictions"][0], dim=0)
-            #sam_input["mask_inputs"] = pred["low_res_logits"][:,logit_id,:,:]
+            sam_input["mask_inputs"] = pred["low_res_logits"][:,logit_id,:,:]
             sam_input["point_coords"] = torch.Tensor([coords]).to(self.device)
             sam_input["point_labels"] = torch.Tensor([labels]).to(self.device)
 
         print("yattaaaaaaa!!!!!!!!")
-        loss = ...
+        pred = self.forward(sam_input)[0]
+        mask_ids = self.point_sample(target[0], coords, labels)
+        loss = self.calc_loss(pred, target[0][mask_ids])
+
         self.log('train_loss', loss, prog_bar=True)
+
+        print("yattaaaaaaa!!!!!!!!2222222")
         # During training, we backprop only the minimum loss over the 3 output masks.
         # sam paper main text Section 3
         return loss
