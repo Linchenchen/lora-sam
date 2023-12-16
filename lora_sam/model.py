@@ -22,8 +22,8 @@ class LoRASAM(pl.LightningModule):
         sam.prompt_encoder.input_image_size = [256, 256]
         sam.prompt_encoder.image_embedding_size = [16, 16]
 
-        #self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
-        #BaseFinetuning.freeze(sam.image_encoder, train_bn=True)
+        self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
+        BaseFinetuning.freeze(sam.image_encoder, train_bn=True)
         self.sam = sam
         self.iou_loss = MaskIoULoss()
         self.dice_loss = MaskDiceLoss()
@@ -71,7 +71,7 @@ class LoRASAM(pl.LightningModule):
         return optimizer
     
 
-    def training_step(self, batch, batch_idx):
+    def calc_loss(self, batch):
         images, target = batch
         images = images.to(self.device)
         target = [mask.to(self.device) for mask in target]
@@ -100,7 +100,11 @@ class LoRASAM(pl.LightningModule):
             loss_dice += self.dice_loss(mask_pred, mask_gt)
             loss_iou += self.iou_loss(iou_pred, mask_pred, mask_gt)
         
-        loss = 20. * loss_focal + loss_dice + loss_iou
+        return 20. * loss_focal + loss_dice + loss_iou
+
+
+    def training_step(self, batch, batch_idx):        
+        loss = self.calc_loss(batch)
         self.log('train_loss', loss, prog_bar=True)
         
         # During training, we backprop only the minimum loss over the 3 output masks.
@@ -108,9 +112,7 @@ class LoRASAM(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        images, targets = batch
-        ...
-        loss = 0
+        loss = self.calc_loss(batch)
         # use same procedure as training, monitor the loss
         self.log('val_loss', loss, prog_bar=True)
 
