@@ -1,6 +1,6 @@
 from segment_anything.modeling.sam import Sam
 import pytorch_lightning as pl
-from lora import *
+from .lora import *
 from segment_anything import sam_model_registry
 from pytorch_lightning.callbacks.finetuning import BaseFinetuning
 import random

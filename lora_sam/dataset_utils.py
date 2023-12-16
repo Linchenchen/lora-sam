@@ -1,4 +1,4 @@
-from dataset import SA1B_Dataset
+from .dataset import SA1B_Dataset
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
@@ -30,9 +30,9 @@ def get_loaders(folder="./sa1b", batch_size=32):
     torch.random.manual_seed(1)
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     train_loader = DataLoader(train_dataset, batch_size=batch_size, 
-        shuffle=True, num_workers=2, collate_fn=collate_fn)
+        shuffle=True, num_workers=1, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, 
-        shuffle=False, num_workers=2, collate_fn=collate_fn)
+        shuffle=False, num_workers=1, collate_fn=collate_fn)
 
     return train_loader, test_loader
 

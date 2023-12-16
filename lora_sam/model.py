@@ -1,6 +1,5 @@
-from segment_anything.modeling.sam import Sam
 import pytorch_lightning as pl
-from lora import *
+from .lora import *
 from segment_anything import sam_model_registry
 from pytorch_lightning.callbacks.finetuning import BaseFinetuning
 import random
@@ -28,9 +27,43 @@ class LoRASAM(pl.LightningModule):
         self.sam = sam
         self.dice = MaskDiceLoss()
         self.focal = MaskFocalLoss()
+
+
+    def forward(self, images, prompt):
+        _, _, H, W = images.shape
+        images = torch.stack([self.sam.preprocess(img) for img in images], dim=0)
+        image_embeddings = self.sam.image_encoder(images)
+        
+        ious = []
+        pred_masks = []
+
+        for i, embedding in enumerate(image_embeddings):
+            sparse_embeddings, dense_embeddings = self.sam.prompt_encoder.forward(
+                points=prompt["points"][i] if "points" in prompt else None, 
+                boxes=prompt["boxes"][i] if "boxes" in prompt else None, 
+                masks=prompt["masks"][i] if "masks" in prompt else None, 
+            )
+
+            low_res_masks, iou_predictions = self.sam.mask_decoder.forward(
+                image_embeddings=embedding.unsqueeze(0),
+                image_pe=self.model.prompt_encoder.get_dense_pe(),
+                sparse_prompt_embeddings=sparse_embeddings,
+                dense_prompt_embeddings=dense_embeddings,
+                multimask_output=True,)
+
+            masks = F.interpolate(
+                low_res_masks,
+                (H, W),
+                mode="bilinear",
+                align_corners=False,)
+            
+            pred_masks.append(masks.squeeze(1))
+            ious.append(iou_predictions)
+
+        return pred_masks, ious
     
 
-    def forward(self, *args, **kwargs):
+    def _forward(self, args, kwargs):
         """
         comments imported from original SAM code
 
@@ -148,29 +181,24 @@ class LoRASAM(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         images, target = batch
         images = images.to(self.device)
-        target = target.to(self.device)
+        target = [mask.to(self.device) for mask in target]
         
-        sam_input = {}
-        sam_input['image'] = images[0]
-        sam_input['original_size'] = target.shape[2:]
+        prompt = {}
         use_point_prompt = True or torch.rand(1).item() < 0.5
 
-        coords = []
-        labels = []
-        def append_point(idx, arg):
-            i, j = arg
-            coords.append(arg)
-            labels.append(target[0,idx,i,j])
-
-        idx = torch.randint(target.shape[1], (1,))
         if use_point_prompt:
-            append_point(idx, [torch.randint(dim, (1,)) for dim in target.shape[2:]])
-            sam_input["point_coords"] = torch.Tensor([coords]).to(self.device)
-            sam_input["point_labels"] = torch.Tensor([labels]).to(self.device)
+            prompt["points"] = []
+            for _ in range(len(images)):
+                point = [torch.randint(dim, (1,)) for dim in images.shape[2:]]
+                prompt["points"].append([point])
+
         else:
             pass
+        
+        print("lllaerg")
+        pred = self.forward(images, prompt)[0]
+        print("lllaerg2")
 
-        pred = self.forward(sam_input)[0]
         mask_ids = self.point_sample(target[0], coords, labels)
         print("lll2")
         loss = self.calc_loss(pred, target[0][mask_ids])
