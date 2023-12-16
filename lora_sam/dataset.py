@@ -29,8 +29,7 @@ class SA1B_Dataset(torchvision.datasets.ImageFolder):
         if self.target_transform is not None:
             target = self.target_transform(target)
         target[target > 0] = 1 # convert to binary masks
-        print(image.shape, target.shape)
-
+        
         return image, target
 
     def __len__(self):

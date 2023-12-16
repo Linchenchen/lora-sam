@@ -6,10 +6,7 @@ from torch.utils.data import DataLoader, random_split
 
 
 def collate_fn(batch):
-    # TODO: collect_fn
-    print("uuuuuu")
     images, target = zip(*batch)
-    print("uuuuuu2")
     return torch.stack(images, dim=0), target
 
 
@@ -42,9 +39,7 @@ def get_loaders(folder="./sa1b", batch_size=32):
 
 
 if __name__ == "__main__":
-    print("aaaa")
     train_loader, test_loader = get_loaders(batch_size=2)
-    print("aaaa2")
     images, target = next(iter(train_loader))
     print("image shape:\t", images.shape)
     print("len(target):\t", len(target))
