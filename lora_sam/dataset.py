@@ -1,49 +1,12 @@
-import glob
-import os
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torchvision
-import torchvision.transforms as transforms
-
-from PIL import Image
-
 from pycocotools import mask as mask_utils
 
 import json
 import numpy as np
-from tqdm import tqdm
 
-
-input_transforms = transforms.Compose([
-    transforms.Resize((160, 256)),
-    transforms.ToTensor(),
-])
-
-target_transforms = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Resize((160, 256)),
-])
 
 class SA1B_Dataset(torchvision.datasets.ImageFolder):
-    """A data loader for the SA-1B Dataset from "Segment Anything" (SAM)
-    This class inherits from :class:`~torchvision.datasets.ImageFolder` so
-    the same methods can be overridden to customize the dataset.
-    Args:
-        root (string): Root directory path.
-        transform (callable, optional): A function/transform that  takes in an PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``
-        target_transform (callable, optional): A function/transform that takes in the
-            target and transforms it.
-        loader (callable, optional): A function to load an image given its path.
-        is_valid_file (callable, optional): A function that takes path of an Image file
-            and check if the file is a valid file (used to check of corrupt files)
-     Attributes:
-        classes (list): List of the class names sorted alphabetically.
-        class_to_idx (dict): Dict with items (class_name, class_index).
-        imgs (list): List of (image path, class_index) tuples
-    """
-
     def __getitem__(self, index):
         """
         Args:
@@ -66,6 +29,7 @@ class SA1B_Dataset(torchvision.datasets.ImageFolder):
         if self.target_transform is not None:
             target = self.target_transform(target)
         target[target > 0] = 1 # convert to binary masks
+        print(image.shape, target.shape)
 
         return image, target
 

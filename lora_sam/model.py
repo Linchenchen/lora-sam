@@ -67,7 +67,7 @@ class LoRASAM(pl.LightningModule):
         shape BxCxHxW, where H=W=256. Can be passed as mask input
         to subsequent iterations of prediction.
         """
-        kwargs["multimask_output"] = True
+        
         return self.sam(args, kwargs)
 
     def configure_optimizers(self):
