@@ -29,7 +29,7 @@ class LoRASAM(pl.LightningModule):
         self.focal = MaskFocalLoss()
 
 
-    def forward(self, images, prompt):
+    def forward(self, images, prompt, target):
         _, _, H, W = images.shape
         images = torch.stack([self.sam.preprocess(img) for img in images], dim=0)
         image_embeddings = self.sam.image_encoder(images)
@@ -49,7 +49,7 @@ class LoRASAM(pl.LightningModule):
                 image_pe=self.model.prompt_encoder.get_dense_pe(),
                 sparse_prompt_embeddings=sparse_embeddings,
                 dense_prompt_embeddings=dense_embeddings,
-                multimask_output=True,)
+                multimask_output=False,)
 
             masks = F.interpolate(
                 low_res_masks,
@@ -148,34 +148,6 @@ class LoRASAM(pl.LightningModule):
 
     def iou_token_loss(self, iou_prediction, prediction, targets):
         ...
-
-
-    def point_sample(self, all_masks, points_coords, points_label):
-        # all_masks: [N, H, W], one image, N masks
-        # points_coords: (N, 2)
-        # points_label: (N, 1), 1 for foreground, 0 for background
-        # return: sampled_masks: [3, H, W], masks order from big to small
-        # you can modify the signature of this function
-
-        mask_ids = []
-        for i, mask in enumerate(all_masks):
-            is_valid = True
-            for is_fore, (x, y) in zip(points_label, points_coords):
-                on_mask = int(mask[int(x)][int(y)])
-                is_valid = (on_mask and is_fore) or (not on_mask and not is_fore)
-                if not is_valid:
-                    break
-
-            if is_valid:
-                mask_ids.append(i)
-
-        mask_ids.sort(key=lambda i: all_masks[i].sum())
-        assert mask_ids
-
-        while len(mask_ids) < 3:
-            mask_ids.insert(0, mask_ids[0])
-
-        return mask_ids[:3]
     
 
     def training_step(self, batch, batch_idx):
@@ -186,17 +158,22 @@ class LoRASAM(pl.LightningModule):
         prompt = {}
         use_point_prompt = True or torch.rand(1).item() < 0.5
 
-        if use_point_prompt:
-            prompt["points"] = []
-            for _ in range(len(images)):
-                point = [torch.randint(dim, (1,)) for dim in images.shape[2:]]
-                prompt["points"].append([point])
+        sample_masks = [random.choice(masks) for masks in target]
+        coords = [[] for _ in range(len(images))]
+        labels = [[] for _ in range(len(images))]
 
+        def augument_point
+        
+        if use_point_prompt:
+            for idx in range(len(images)):
+                sample_point(idx)
+            
         else:
             pass
         
         print("lllaerg")
-        pred = self.forward(images, prompt)[0]
+        tensorfy_point_prompt()
+        pred = self.forward(images, prompt, target=target)[0]
         print("lllaerg2")
 
         mask_ids = self.point_sample(target[0], coords, labels)
@@ -208,7 +185,7 @@ class LoRASAM(pl.LightningModule):
 
 
         if use_point_prompt:
-            mask_ids = self.point_sample(target[0], coords, labels)
+            pass
         else:
             pass
 
