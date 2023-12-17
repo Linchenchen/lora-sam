@@ -3,6 +3,7 @@ import numpy as np
 from .model import LoRASAM
 import matplotlib.pyplot as plt
 from segment_anything import SamPredictor
+import torchvision.transforms as transforms
 
 
 class Plotter:
@@ -12,10 +13,17 @@ class Plotter:
         kwargs = {"lora_rank":4, "lora_scale":1}
         self.sam = LoRASAM.load_from_checkpoint(checkpoint, **kwargs).to(self.device)
         self.predictor = SamPredictor(self.sam.sam)
+        self.reverse = transforms.ToPILImage()
+
+    
+    def to_numpy(self, img):
+        return np.array(self.reverse(img[0]))
+    
 
 
     def inference_plot(self, img: torch.Tensor, coords=None, labels=None, bboxes=None):
-        img.to(self.device)
+        img = self.to_numpy(img)
+        self.predictor.set_image(img)
 
         masks, scores, logits = self.predictor.predict(
             point_coords=coords,
@@ -25,3 +33,17 @@ class Plotter:
         )
 
         print(masks.shape, scores.shape, logits.shape)
+
+        plt.figure(figsize=(12, 4))
+        # Plotting masks on subplots
+        for i, (score, mask) in enumerate(zip(scores, masks)):
+            plt.subplot(1, 4, i+1)
+            plt.imshow(img)
+            plt.imshow(mask, alpha=0.5)  # You can adjust the alpha value for transparency
+            plt.title("Score Prediction {:.4f}".format(score))
+
+        # Adjust layout for better visualization
+        plt.tight_layout()
+
+        # Show the plot
+        plt.show()
