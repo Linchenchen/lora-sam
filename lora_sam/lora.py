@@ -143,10 +143,10 @@ class LoRAConvTranspose2DLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, rank=4):
         super().__init__()
 
-        if rank > min(in_channels, out_channels * kernel_size**2):
-            raise ValueError(
-                f"LoRA rank {rank} must be less or equal than {min(in_channels, out_channels * kernel_size**2)}"
-            )
+        # if rank > min(in_channels, out_channels * kernel_size**2):
+        #     raise ValueError(
+        #         f"LoRA rank {rank} must be less or equal than {min(in_channels, out_channels * kernel_size**2)}"
+        #     )
 
         # Define the downsample convolution layer
         self.down = nn.ConvTranspose2d(in_channels, rank, kernel_size, stride, padding, output_padding, bias=False)

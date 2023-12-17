@@ -18,7 +18,7 @@ class SA1B_Dataset(torchvision.datasets.ImageFolder):
         img_folder = os.path.join(folder, "sa1b")
         super().__init__(img_folder, **kwargs)
 
-        self.ws = os.path.join(folder, "total")
+        self.ws = os.path.join(folder, "preprocess")
         if not os.path.exists(self.ws):
             self.__preprocess()
     
