@@ -102,11 +102,12 @@ def get_loaders(folder="./data", batch_size=32):
     test_size = full_size - train_size
 
     torch.random.manual_seed(1)
+    num_workers = min(16, batch_size)
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     train_loader = DataLoader(train_dataset, batch_size=batch_size, 
-        shuffle=True, num_workers=1, collate_fn=collate_fn)
+        shuffle=True, num_workers=num_workers, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, 
-        shuffle=False, num_workers=1, collate_fn=collate_fn)
+        shuffle=False, num_workers=num_workers, collate_fn=collate_fn)
 
     return train_loader, test_loader
 
