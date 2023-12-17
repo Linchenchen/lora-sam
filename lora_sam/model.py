@@ -112,6 +112,7 @@ class LoRASAM(pl.LightningModule):
         # During training, we backprop only the minimum loss over the 3 output masks.
         # sam paper main text Section 3
         return loss
+    
 
     def validation_step(self, batch, batch_idx):
         loss = self.calc_loss(batch)
