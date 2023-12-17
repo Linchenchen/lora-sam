@@ -12,7 +12,7 @@ _ext
 build/
 dist/
 wheels/
-sa1b/
+data/
 lightning_logs
 
 # pytorch/python/numpy formats

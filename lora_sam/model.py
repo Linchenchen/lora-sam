@@ -22,8 +22,9 @@ class LoRASAM(pl.LightningModule):
         sam.prompt_encoder.input_image_size = [256, 256]
         sam.prompt_encoder.image_embedding_size = [16, 16]
 
+        BaseFinetuning.freeze(sam, train_bn=True)
         self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
-        BaseFinetuning.freeze(sam.image_encoder, train_bn=True)
+        
         self.sam = sam
         self.iou_loss = MaskIoULoss()
         self.dice_loss = MaskDiceLoss()
@@ -65,7 +66,8 @@ class LoRASAM(pl.LightningModule):
     
 
     def configure_optimizers(self):
-        lora_parameters = [param for param in self.parameters() if param.requires_grad]
+        lora_parameters = [param for param in self.parameters(recurse=True) if param.requires_grad]
+
         # make sure original sam don't requires_grad
         optimizer = torch.optim.AdamW(lora_parameters, lr=1e-5)
         return optimizer
