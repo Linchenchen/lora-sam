@@ -119,15 +119,14 @@ class LoRASAM(pl.LightningModule):
         target_masks = []
         target_boxes = []
         for i in range(len(images)):
-            while True:
+            for _ in range(10):
                 bbox = self.random_sample_bbox(images.shape)
                 masks = self.box_sample(bbox, target[i])
                 if any((mask == 0).all() for mask in masks):
                     continue
                 
-                target_boxes.append(bbox)
-                target_masks.append(masks.to(self.device))
-                break
+            target_boxes.append(bbox)
+            target_masks.append(masks.to(self.device))
 
         target_boxes = torch.Tensor(target_boxes).to(self.device)
         mask_preds, iou_preds = self.forward(images, target_boxes)
