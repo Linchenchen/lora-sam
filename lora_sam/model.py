@@ -33,6 +33,36 @@ class LoRASAM(pl.LightningModule):
         self.focal_loss = MaskFocalLoss()
 
 
+    def point_sample(self, points_coords, points_label, all_masks):
+        # all_masks: [N, H, W], one image, N masks
+        # points_coords: (N, 2)
+        # points_label: (N, 1), 1 for foreground, 0 for background
+        # return: sampled_masks: [3, H, W], masks order from big to small
+        # you can modify the signature of this function
+        
+        # find the target mask that contains the point
+        mask_ids = []
+        for i, mask in enumerate(all_masks):
+            is_valid = True
+            for is_fore, (x, y) in zip(points_label, points_coords):
+                on_mask = mask[y][x]
+                is_valid = (on_mask and is_fore) or (not on_mask and not is_fore)
+                if not is_valid:
+                    break
+
+            if is_valid:
+                mask_ids.append(i)
+
+        # assign according to the size of the mask and leave one or two of the three empty.
+        sampled_masks = torch.zeros((3, all_masks.shape[1], all_masks.shape[2]))
+        mask_ids.sort(key=lambda i: all_masks[i].sum(), reverse=True)
+        
+        for i, idx in enumerate(mask_ids):
+            sampled_masks[i] = all_masks[idx]
+        
+        return sampled_masks
+
+
     def box_sample(self, bbox, all_masks):
         # all_masks: [N, H, W], one image, N masks
         # bbox: (xyxy)
@@ -143,7 +173,7 @@ class LoRASAM(pl.LightningModule):
             dice_loss += self.dice_loss(mask_pred, mask_gt)
             iou_loss += self.iou_loss(iou_pred, mask_pred, mask_gt)
 
-        print(focal_loss.item(), dice_loss.item(), iou_loss.item())
+        #print(focal_loss.item(), dice_loss.item(), iou_loss.item())
         
         return focal_loss + dice_loss + iou_loss
 
