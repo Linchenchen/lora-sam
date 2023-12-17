@@ -130,14 +130,20 @@ class LoRASAM(pl.LightningModule):
 
         target_boxes = torch.Tensor(target_boxes).to(self.device)
         mask_preds, iou_preds = self.forward(images, target_boxes)
-        loss = torch.tensor(0., device=self.device)
+
+        focal_loss = torch.tensor(0., device=self.device)
+        dice_loss = torch.tensor(0., device=self.device)
+        iou_loss = torch.tensor(0., device=self.device)
+
         for mask_pred, mask_gt, iou_pred in zip(mask_preds, target_masks, iou_preds):
             mask_gt = mask_gt.unsqueeze(0)
-            loss += 20. * self.focal_loss(mask_pred, mask_gt)
-            loss +=  1. * self.dice_loss(mask_pred, mask_gt)
-            loss +=  1. * self.iou_loss(iou_pred, mask_pred, mask_gt)
+            focal_loss += 20. * self.focal_loss(mask_pred, mask_gt)
+            dice_loss += self.dice_loss(mask_pred, mask_gt)
+            iou_loss += self.iou_loss(iou_pred, mask_pred, mask_gt)
+
+        print(focal_loss.item(), dice_loss.item(), iou_loss.item())
         
-        return loss
+        return focal_loss + dice_loss + iou_loss
 
 
     def training_step(self, batch, batch_idx):        

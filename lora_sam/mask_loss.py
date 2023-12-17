@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class MaskFocalLoss(nn.Module):
-    def __init__(self, gamma=2, alpha=0.8):
+    def __init__(self, gamma=1, alpha=0.8):
         super(MaskFocalLoss, self).__init__()
         self.gamma = gamma
         self.alpha = alpha
@@ -18,15 +18,20 @@ class MaskFocalLoss(nn.Module):
 
     
 class MaskDiceLoss(nn.Module):
-    def __init__(self, smooth=1e-5):
-        super(MaskDiceLoss, self).__init__()
-        self.smooth = smooth
+    def __init__(self, weight=None, size_average=True):
+        super().__init__()
 
-    def forward(self, pred, target):
-        intersection = (pred * target).sum()
-        union = pred.sum() + target.sum() + self.smooth
-        dice_loss = 1 - (2 * intersection + self.smooth) / union
-        return dice_loss
+    def forward(self, inputs, targets, smooth=1):
+        inputs = F.sigmoid(inputs)
+        inputs = torch.clamp(inputs, min=0, max=1)
+        #flatten label and prediction tensors
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+
+        intersection = (inputs * targets).sum()
+        dice = (2. * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
+
+        return 1 - dice
     
     
 class MaskIoULoss(nn.Module):
