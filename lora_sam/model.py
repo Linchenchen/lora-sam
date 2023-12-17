@@ -31,6 +31,36 @@ class LoRASAM(pl.LightningModule):
         self.focal_loss = MaskFocalLoss()
 
 
+    def box_sample(self, bbox, all_masks):
+        # all_masks: [N, H, W], one image, N masks
+        # bbox: (xyxy)
+        # return: sampled_masks: [3, H, W], masks order from big to small
+
+        # Create a binary mask for the bounding box
+        bbox_mask = torch.zeros_like(all_masks)
+        bbox_mask[:,bbox[1]:bbox[3], bbox[0]:bbox[2]] = 1
+
+        # Calculate IoU for all masks
+        intersections = torch.logical_and(all_masks, bbox_mask).sum(dim=(1, 2))
+        unions = torch.logical_or(all_masks, bbox_mask).sum(dim=(1, 2))
+        ious = intersections.float() / unions.float()
+        
+
+        # Find the mask indices with the highest IoU and smaller size than bbox
+        mask_ids, = torch.where(unions <= bbox_mask[0].sum())
+
+        # Sort by IoU in descending order
+        sorted_mask_ids = torch.argsort(ious[mask_ids], descending=True)
+
+        # Assign according to the size of the mask and leave one or two of the three empty.
+        sampled_masks = torch.zeros((3, all_masks.size(1), all_masks.size(2)))
+
+        for i, idx in enumerate(sorted_mask_ids[:3]):
+            sampled_masks[i] = all_masks[mask_ids[idx]]
+
+        return sampled_masks
+
+
     def forward(self, images, bboxes):
         _, _, H, W = images.shape
         images = torch.stack([self.sam.preprocess(img) for img in images], dim=0)
