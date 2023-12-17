@@ -80,7 +80,7 @@ class LoRASAM(pl.LightningModule):
                 image_pe=self.sam.prompt_encoder.get_dense_pe(),
                 sparse_prompt_embeddings=sparse_embeddings,
                 dense_prompt_embeddings=dense_embeddings,
-                multimask_output=False,
+                multimask_output=True,
             )
 
             masks = F.interpolate(
@@ -102,37 +102,43 @@ class LoRASAM(pl.LightningModule):
         optimizer = torch.optim.AdamW(lora_parameters, lr=1e-5)
         return optimizer
     
+    
+    def random_sample_bbox(self, image_shape):
+        H, W = image_shape[-2:]
+        # Generate random coordinates for the first point
+        x_min, x_max = torch.randint(0, W, (2,)).sort().values
+        y_min, y_max = torch.randint(0, H, (2,)).sort().values
+        return x_min, y_min, x_max, y_max
+        
 
     def calc_loss(self, batch):
         images, target = batch
         images = images.to(self.device)
         target = [mask.to(self.device) for mask in target]
 
-        target_masks = [random.choice(masks).unsqueeze(0) for masks in target]
+        target_masks = []
+        target_boxes = []
+        for i in range(len(images)):
+            while True:
+                bbox = self.random_sample_bbox(images.shape)
+                masks = self.box_sample(bbox, target[i])
+                if any((mask == 0).all() for mask in masks):
+                    continue
+                
+                target_boxes.append(bbox)
+                target_masks.append(masks.to(self.device))
+                break
 
-        bboxes = []
-        for mask in target_masks:
-            idx = torch.nonzero(mask)
-            x_min = torch.min(idx[1])
-            y_min = torch.min(idx[0])
-            x_max = torch.max(idx[1])
-            y_max = torch.max(idx[0])
-            bboxes.append((x_min, y_min, x_max, y_max))
-
-        bboxes = torch.Tensor(bboxes).to(self.device)
-
-        loss_focal = torch.tensor(0., device=self.device)
-        loss_dice = torch.tensor(0., device=self.device)
-        loss_iou = torch.tensor(0., device=self.device)
-        
-        mask_preds, iou_preds = self.forward(images, bboxes)
-            
+        target_boxes = torch.Tensor(target_boxes).to(self.device)
+        mask_preds, iou_preds = self.forward(images, target_boxes)
+        loss = torch.tensor(0., device=self.device)
         for mask_pred, mask_gt, iou_pred in zip(mask_preds, target_masks, iou_preds):
-            loss_focal += self.focal_loss(mask_pred, mask_gt)
-            loss_dice += self.dice_loss(mask_pred, mask_gt)
-            loss_iou += self.iou_loss(iou_pred, mask_pred, mask_gt)
+            mask_gt = mask_gt.unsqueeze(0)
+            loss += 20. * self.focal_loss(mask_pred, mask_gt)
+            loss +=  1. * self.dice_loss(mask_pred, mask_gt)
+            loss +=  1. * self.iou_loss(iou_pred, mask_pred, mask_gt)
         
-        return 20. * loss_focal + loss_dice + loss_iou
+        return loss
 
 
     def training_step(self, batch, batch_idx):        
