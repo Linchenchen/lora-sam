@@ -34,13 +34,18 @@ class Plotter:
 
         print(masks.shape, scores.shape, logits.shape)
 
-        plt.figure(figsize=(12, 4))
+        plt.figure(figsize=(6, 4))
         # Plotting masks on subplots
         for i, (score, mask) in enumerate(zip(scores, masks)):
-            plt.subplot(1, 4, i+1)
+            ax = plt.subplot(1, 4, i+1)
             plt.imshow(img)
             plt.imshow(mask, alpha=0.5)  # You can adjust the alpha value for transparency
             plt.title("Score Prediction {:.4f}".format(score))
+
+            if bboxes is not None:
+                x0, y0 = bboxes[0], bboxes[1]
+                w, h = bboxes[2] - bboxes[0], bboxes[3] - bboxes[1]
+                ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0,0,0,0), lw=2))    
 
         # Adjust layout for better visualization
         plt.tight_layout()
