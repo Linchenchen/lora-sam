@@ -35,6 +35,7 @@ class SA1B_Dataset(torchvision.datasets.ImageFolder):
     def __preprocess(self):
         os.mkdir(self.ws)
 
+        random.seed(1)
         random.shuffle(self.imgs)
         
         for file, _ in tqdm(self.imgs[:1000]):
