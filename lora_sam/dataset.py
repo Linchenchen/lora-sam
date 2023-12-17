@@ -18,7 +18,7 @@ class SA1B_Dataset(torchvision.datasets.ImageFolder):
         img_folder = os.path.join(folder, "sa1b")
         super().__init__(img_folder, **kwargs)
 
-        self.ws = os.path.join(folder, "preprocess")
+        self.ws = os.path.join(folder, "total")
         if not os.path.exists(self.ws):
             self.__preprocess()
     
@@ -38,7 +38,7 @@ class SA1B_Dataset(torchvision.datasets.ImageFolder):
         random.seed(1)
         random.shuffle(self.imgs)
         
-        for file, _ in tqdm(self.imgs[:1000]):
+        for file, _ in tqdm(self.imgs[:]):
             masks = json.load(open(f'{file[:-3]}json'))['annotations'] # load json masks
 
             target = []
