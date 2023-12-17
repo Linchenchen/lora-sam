@@ -1,9 +1,9 @@
 from lora_sam import *
 
 
-def inference(checkpoint = "lightning_logs/version_1/checkpoints/epoch=5-step=600.ckpt"):
+def inference(checkpoint = "lightning_logs/version_1/checkpoints/epoch=3-step=400.ckpt"):
     plotter = Plotter(checkpoint)
-    _, test_loader = get_loaders(batch_size=8)
+    train_loader, test_loader = get_loaders(batch_size=8)
 
     input_box = np.array([40, 50, 130, 110])
     images, target = next(iter(test_loader))
