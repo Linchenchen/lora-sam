@@ -143,10 +143,10 @@ class LoRAConvTranspose2DLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, rank=4):
         super().__init__()
 
-        if rank > min(in_channels, out_channels * kernel_size**2):
-            raise ValueError(
-                f"LoRA rank {rank} must be less or equal than {min(in_channels, out_channels * kernel_size**2)}"
-            )
+        # if rank > min(in_channels, out_channels * kernel_size**2):
+        #     raise ValueError(
+        #         f"LoRA rank {rank} must be less or equal than {min(in_channels, out_channels * kernel_size**2)}"
+        #     )
 
         # Define the downsample convolution layer
         self.down = nn.ConvTranspose2d(in_channels, rank, kernel_size, stride, padding, output_padding, bias=False)
@@ -182,14 +182,14 @@ class LoRAConvTranspose2DLayer(nn.Module):
 class MonkeyPatchLoRAConvTranspose2D(nn.Module):
     def __init__(self, conv_transpose2d: nn.ConvTranspose2d, rank=4, lora_scale=1):
         super().__init__()
-        if rank > min(conv_transpose2d.in_channels, conv_transpose2d.out_channels * conv_transpose2d.kernel_size[0]**2):
-            raise ValueError(
-                f"LoRA rank {rank} must be less or equal than {min(conv_transpose2d.in_channels, conv_transpose2d.out_channels * conv_transpose2d.kernel_size[0]**2)}"
-            )
-        if not isinstance(conv_transpose2d, nn.ConvTranspose2d):
-            raise ValueError(
-                f"MonkeyPatchLoRAConvTranspose2D only supports nn.ConvTranspose2d, but got {type(conv_transpose2d)}"
-            )
+        # if rank > min(conv_transpose2d.in_channels, conv_transpose2d.out_channels * conv_transpose2d.kernel_size[0]**2):
+        #     raise ValueError(
+        #         f"LoRA rank {rank} must be less or equal than {min(conv_transpose2d.in_channels, conv_transpose2d.out_channels * conv_transpose2d.kernel_size[0]**2)}"
+        #     )
+        # if not isinstance(conv_transpose2d, nn.ConvTranspose2d):
+        #     raise ValueError(
+        #         f"MonkeyPatchLoRAConvTranspose2D only supports nn.ConvTranspose2d, but got {type(conv_transpose2d)}"
+        #     )
 
         # Save the original ConvTranspose2D layer
         self.conv_transpose2d = conv_transpose2d

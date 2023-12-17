@@ -24,6 +24,8 @@ class LoRASAM(pl.LightningModule):
 
         BaseFinetuning.freeze(sam, train_bn=True)
         self.__apply_lora(sam.image_encoder, lora_rank, lora_scale)
+        self.__apply_lora(sam.prompt_encoder, lora_rank, lora_scale)
+        self.__apply_lora(sam.mask_decoder, lora_rank, lora_scale)
         
         self.sam = sam
         self.iou_loss = MaskIoULoss()
