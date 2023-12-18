@@ -1,7 +1,7 @@
 from lora_sam import *
 
 
-def inference(checkpoint = "lightning_logs/version_6/checkpoints/epoch=24-step=27975.ckpt"):
+def inference(checkpoint = "lightning_logs/version_4/checkpoints/epoch=29-step=3000.ckpt"):
     input_transform = transforms.Compose([
     transforms.Resize((160, 256), antialias=True),
     transforms.ToTensor(),
