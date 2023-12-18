@@ -7,11 +7,12 @@ import torchvision.transforms as transforms
 
 
 class Plotter:
-    def __init__(self, checkpoint = "lightning_logs/version_0/checkpoints/epoch=29-step=3000.ckpt"):
+    def __init__(self, checkpoint = "lightning_logs/version_6/checkpoints/epoch=24-step=27975.ckpt"):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         kwargs = {"lora_rank":4, "lora_scale":1}
-        self.sam = LoRASAM.load_from_checkpoint(checkpoint, **kwargs).to(self.device)
+        # self.sam = LoRASAM.load_from_checkpoint(checkpoint, **kwargs).to(self.device)
+        self.sam = LoRASAM(**kwargs).to(self.device)
         self.predictor = SamPredictor(self.sam.sam)
         self.reverse = transforms.ToPILImage()
     
