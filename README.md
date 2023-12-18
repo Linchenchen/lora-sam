@@ -2,13 +2,13 @@
 
 ## Code Usage
 ### Data preprocessing
-Create a folder `data` and place `sa1b` under it, then run `python3 lora_sam/dataset.py`. 
+Create a folder `data` and place `sa1b` under it, then run `python3 lora_sam/dataset.py`
 
 ### Training 
 After preprocessing, run `python3 traning.py`
 
 ### Inference 
-Run `python3 inference.py`, change line 21-27 to test out different prompts. 
+Run `python3 inference.py`, change line 21-27 to test out different prompts
 
 ## Results
 ### Loss Curve
